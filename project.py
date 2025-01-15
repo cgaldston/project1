@@ -25,9 +25,26 @@ warnings.filterwarnings("ignore")
 # QUESTION 1
 # ---------------------------------------------------------------------
 
-
+#def helper_calculate_length(trip_id):
+    #total = trip_data["shape_dist_traveled"].sum()
+    #return total
 def create_detailed_schedule(schedule, stops, trips, bus_lines):
-    ...
+    merged_trip_stops=pd.merge(stops, schedule, on='stop_id', how='left')
+    merged_trip_stops=pd.merge(merged_trip_stops,trips, on="trip_id", how='left')
+    merged_trip_stops=merged_trip_stops[merged_trip_stops["route_id"].isin(bus_lines)]
+    merged_trip_stops['route_id'] = pd.Categorical(merged_trip_stops['route_id'], categories=bus_lines, ordered=True)
+    merged_trip_stops = merged_trip_stops.sort_values('route_id')
+    trip_lengths = merged_trip_stops.groupby('trip_id')['shape_dist_traveled'].sum().reset_index()
+    trip_lengths.rename(columns={'shape_dist_traveled': 'trip_length'}, inplace=True)
+    merged_trip_stops = pd.merge(merged_trip_stops, trip_lengths[['trip_id', 'trip_length']], on='trip_id', how='left')
+    merged_trip_stops=merged_trip_stops.sort_values(by=['route_id', 'trip_length'], ascending=[True, True])
+    merged_trip_stops=merged_trip_stops.set_index("trip_id")
+    merged_trip_stops=merged_trip_stops.drop(columns="shape_dist_traveled")
+    merged_trip_stops=merged_trip_stops.rename(columns={"trip_length":"shape_dist_traveled"})
+    return merged_trip_stops
+
+
+    
 
 def visualize_bus_network(bus_df):
     # Load the shapefile for San Diego city boundary
