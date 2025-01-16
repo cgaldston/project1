@@ -70,7 +70,6 @@ def visualize_bus_network(bus_df):
         marker_line_width=1,
     ))
 
-    # Update layout
     fig.update_layout(
         mapbox=dict(
             style="carto-positron",
@@ -80,7 +79,35 @@ def visualize_bus_network(bus_df):
         margin={"r":0,"t":0,"l":0,"b":0}
     )
 
-    ...
+    # Get's unique bus lines from df
+    bus_lines = np.array(bus_df['route_id'].unique())
+
+    # Assign colors to each bus line
+    color_palette = px.colors.qualitative.Plotly
+    color_dict = {line: color_palette[i] for i, line in enumerate(bus_lines)}
+
+
+    # Create a Scattermapbox trace for each bus line
+    for line in bus_lines:
+        line_data = bus_df[bus_df['route_id'] == line]
+        fig.add_trace(go.Scattermapbox(
+            lat=line_data['stop_lat'],
+            lon=line_data['stop_lon'],
+            mode='markers',
+            name="Bus Line " + str(line),
+            marker=go.scattermapbox.Marker(
+                size=8,
+                color=color_dict[line],
+                opacity=0.7
+            ),
+            text=line_data['stop_name'],
+            hoverinfo='text'
+        ))
+
+
+    return fig
+    
+    
 
 
 # ---------------------------------------------------------------------
