@@ -116,11 +116,50 @@ def visualize_bus_network(bus_df):
 
 
 def find_neighbors(station_name, detailed_schedule):
-    ...
+     current_stop = detailed_schedule[detailed_schedule["stop_name"] == station_name]
+     current_stop["next_stop"]=current_stop["stop_sequence"]+1
+     detailed_schedule=detailed_schedule.reset_index()
+     current_stop=current_stop.reset_index()
+     new_df=pd.merge(detailed_schedule, current_stop,left_on=['trip_id', 'stop_sequence'], right_on=['trip_id','next_stop'])
+     return new_df["stop_name_x"].unique()
+
+    
 
 
 def bfs(start_station, end_station, detailed_schedule):
-    ...
+    if start_station not in detailed_schedule["stop_name"].unique():
+        return {f'Start station {start_station} not found.'}
+    elif end_station not in detailed_schedule["stop_name"].unique():
+        return {f'Start station {end_station} not found.'}
+    queue = [(start_station, [start_station])]
+    visited = []
+    while queue:
+        current_station, route = queue.pop(0)  
+        
+        if current_station in visited:
+            continue
+        visited.append(current_station)
+        
+        if current_station == end_station:
+            fastest_route=route 
+        
+        neighbors = find_neighbors(current_station, detailed_schedule)
+        
+        for neighbor in neighbors:
+            if neighbor not in visited:
+                queue.append((neighbor, route + [neighbor]))
+    detailed_schedule=detailed_schedule[detailed_schedule["stop_name"].isin(fastest_route)]
+    detailed_schedule = detailed_schedule.drop_duplicates(subset='stop_name', keep='first')
+    detailed_schedule=detailed_schedule[['stop_name','stop_lat','stop_lon']]
+    detailed_schedule['stop_name'] = pd.Categorical(detailed_schedule['stop_name'], categories=fastest_route, ordered=True)
+    detailed_schedule = detailed_schedule.sort_values('stop_name')
+    detailed_schedule = detailed_schedule.reset_index(drop=True)
+    detailed_schedule["stop_num"]=np.arange(1,detailed_schedule.shape[0]+1)
+    #detailed_schedule['stop_num'] = detailed_schedule['stop_name'].apply(lambda x: fastest_route.index(x)+1)
+    return detailed_schedule
+        
+
+
 
 
 # ---------------------------------------------------------------------
