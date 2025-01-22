@@ -131,8 +131,11 @@ def bfs(start_station, end_station, detailed_schedule):
         return {f'Start station {start_station} not found.'}
     elif end_station not in detailed_schedule["stop_name"].unique():
         return {f'Start station {end_station} not found.'}
+    
     queue = [(start_station, [start_station])]
     visited = []
+    fastest_route = None
+    
     while queue:
         current_station, route = queue.pop(0)  
         
@@ -141,13 +144,15 @@ def bfs(start_station, end_station, detailed_schedule):
         visited.append(current_station)
         
         if current_station == end_station:
-            fastest_route=route 
+            fastest_route=route
+            break
         
         neighbors = find_neighbors(current_station, detailed_schedule)
         
         for neighbor in neighbors:
             if neighbor not in visited:
                 queue.append((neighbor, route + [neighbor]))
+    
     detailed_schedule=detailed_schedule[detailed_schedule["stop_name"].isin(fastest_route)]
     detailed_schedule = detailed_schedule.drop_duplicates(subset='stop_name', keep='first')
     detailed_schedule=detailed_schedule[['stop_name','stop_lat','stop_lon']]
