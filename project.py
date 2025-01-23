@@ -176,7 +176,28 @@ def simulate_bus_arrivals(tau, seed=12):
     
     np.random.seed(seed) # Random seed -- do not change
     
-    ...
+    # Represent the interval start and end in minutes. 
+    start_time = 360
+    end_time = 1440
+
+    avg_num_buses = int((end_time - start_time) / tau)
+
+    arrival_times = np.random.uniform(start_time, end_time, avg_num_buses)
+    arrival_times_sorted = np.sort(arrival_times)
+
+    intervals = np.diff(arrival_times_sorted, prepend=start_time)
+
+    date_format = [f"{int(t // 60):02d}:{int(t % 60):02d}" for t in arrival_times_sorted]
+
+    df = pd.DataFrame({
+        "Arrival Time": date_format,
+        "Interval" : intervals
+    })
+
+    return df
+
+
+
 
 
 # ---------------------------------------------------------------------
