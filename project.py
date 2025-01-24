@@ -187,10 +187,10 @@ def simulate_bus_arrivals(tau, seed=12):
 
     intervals = np.diff(arrival_times_sorted, prepend=start_time)
 
-    date_format = [f"{int(t // 60):02d}:{int(t % 60):02d}" for t in arrival_times_sorted]
+    time_format = [f"{int(t // 60):02d}:{int(t % 60):02d}" for t in arrival_times_sorted]
 
     df = pd.DataFrame({
-        "Arrival Time": date_format,
+        "Arrival Time": time_format,
         "Interval" : intervals
     })
 
@@ -203,11 +203,116 @@ def simulate_bus_arrivals(tau, seed=12):
 # ---------------------------------------------------------------------
 # QUESTION 4
 # ---------------------------------------------------------------------
+def subtract_times_helper(time1, time2):
+    hours1, minutes1 = time1.split(':')
+    hours2, minutes2 = time2.split(':')
+    
+    hours1 = int(hours1)
+    minutes1 = int(minutes1)
+    hours2 = int(hours2)
+    minutes2 = int(minutes2)
+    
+    total_minutes1 = hours1 * 60 + minutes1
+    total_minutes2 = hours2 * 60 + minutes2
+    
+    time_difference_minutes = total_minutes1 - total_minutes2
+    
+    return float(time_difference_minutes)
+
 
 
 def simulate_wait_times(arrival_times_df, n_passengers):
-
-    ...
+    last_converted_min=arrival_times_df["Arrival Time"].iloc[-1]
+    hours = int(last_converted_min.split(":")[0])
+    minutes = int(last_converted_min.split(":")[1])
+    final_minutes = hours * 60 + minutes
+    arrival_times_passengers=np.random.uniform(360,final_minutes,n_passengers)
+    times_passengers_sorted=np.sort(arrival_times_passengers)
+    time_format = [f"{int(t // 60):02d}:{int(t % 60):02d}" for t in times_passengers_sorted]
+    
+    bus_caught=[]
+    i = 0
+    j = 0
+    
+    while i < len(time_format) and j < len(arrival_times_df["Arrival Time"]):
+        if time_format[i] <= arrival_times_df["Arrival Time"].iloc[j]:
+            bus_caught.append(arrival_times_df["Arrival Time"].iloc[j])
+            i += 1  # Increment i only if a match is found
+        else:
+            j += 1  
+    
+    final_df=pd.DataFrame({
+        "Bus Arrival Time":bus_caught,
+        "Passenger Arrival Time":time_format
+    })
+    final_df['Wait_time'] = final_df.apply(lambda row: subtract_times_helper(row['Bus Arrival Time'], row['Passenger Arrival Time']), axis=1)
+    with_index=arrival_times_df.reset_index()
+    final_df=pd.merge(final_df,with_index,left_on='Bus Arrival Time', right_on='Arrival Time',how="inner")
+    final_df=final_df.drop(columns=["Arrival Time","Interval"])
+    final_df=final_df.rename(columns={"index":"Bus Index"})
+    return (final_df)
 
 def visualize_wait_times(wait_times_df, timestamp):
-    ...
+    f isinstance(timestamp, str):
+        timestamp = pd.to_datetime(timestamp, format='%H:%M:%S')
+
+    # Extract just the time part from the timestamp (ignore the date part)
+    start_time = timestamp
+    end_time = start_time + pd.Timedelta(hours=1)
+
+    # Convert 'Passenger Arrival Time' and 'Bus Arrival Time' columns to datetime objects
+    wait_times_df['Passenger Arrival Time'] = pd.to_datetime(wait_times_df['Passenger Arrival Time'], format='%H:%M').dt.time
+    wait_times_df['Bus Arrival Time'] = pd.to_datetime(wait_times_df['Bus Arrival Time'], format='%H:%M').dt.time
+
+    # Filter the dataframe based on the time range (HH:MM only)
+    filtered_df = wait_times_df[
+        wait_times_df['Passenger Arrival Time'].apply(lambda x: start_time.time() <= x <= end_time.time())
+    ]
+
+    # Check if there's data after filtering
+    if filtered_df.empty:
+        print("No data found within the specified block.")
+        return
+
+    # Create the figure
+    fig = go.Figure()
+
+    # Add blue markers for bus arrival times
+    fig.add_trace(go.Scatter(
+        x=filtered_df['Bus Arrival Time'],  # X-axis: Bus arrival times
+        y=[0] * len(filtered_df),  # Y-axis: All values at 0
+        mode='markers',
+        marker=dict(color='blue', size=8),
+        name='Buses'
+    ))
+
+    # Add red markers for passenger arrival times and their wait times
+    fig.add_trace(go.Scatter(
+        x=filtered_df['Passenger Arrival Time'],  # X-axis: Passenger arrival times
+        y=filtered_df['Wait_time'],  # Y-axis: Wait times
+        mode='markers',
+        marker=dict(color='red', size=6),
+        name='Passengers'
+    ))
+
+    # Add vertical lines for wait times
+    for i in range(len(filtered_df)):
+        fig.add_trace(go.Scatter(
+            x=[filtered_df['Passenger Arrival Time'].iloc[i]] * 2,  # X-axis: Passenger arrival time
+            y=[0, filtered_df['Wait_time'].iloc[i]],  # Y-axis: From 0 to the wait time
+            mode='lines',
+            line=dict(color='red', dash='dot'),
+            showlegend=False
+        ))
+
+    # Update layout with title and labels
+    fig.update_layout(
+        title='Passenger Wait Times',
+        xaxis_title='Time (within the block)',
+        yaxis_title='Wait Time (minutes)',
+        legend=dict(x=0, y=1),
+        template='plotly_white'
+    )
+
+    # Show the figure
+    fig.show()
